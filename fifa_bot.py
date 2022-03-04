@@ -13,17 +13,18 @@ from time import sleep
 FIFA_SITE = 'https://www.ea.com/fifa/ultimate-team/web-app/'
 PRICE_SITE = 'https://www.futwiz.com/en/fifa22/player/lionel-messi/69'
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36'
+USER_DATA_DIR = 'C:\Users\Mohamed\AppData\Local\Google\Chrome\User Data\Default'
+USER_AGENT = 'selenium'
 
 X = 1760
 Y = 350
-
-# SELL_VERSIONS = ['gold', 'gold-nr', 'silver', 'silver-nr', 'libertadores']
 # =================================================================================================== #
 
 # --- Functions -- #
 def switch_to_page(browser, page):
     browser.switch_to.window(browser.window_handles[page])
+    
+# ---------------------------------------------------------------------------------------------- #
 
 def get_site_price(browser, player_data):
     switch_to_page(browser, 1)
@@ -66,6 +67,8 @@ def get_site_price(browser, player_data):
 
     return price
 
+# ---------------------------------------------------------------------------------------------- #
+
 def sell_price(price, MIN, MAX):
     
     if (price == -1):
@@ -90,6 +93,8 @@ def sell_price(price, MIN, MAX):
     
     return start, end
 
+# ---------------------------------------------------------------------------------------------- #
+
 def sell(browser, start, buy_now):
     start_price = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[2]/div[2]/input')
     buy_now_price = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[3]/div[2]/input')
@@ -110,8 +115,8 @@ def sell(browser, start, buy_now):
 service = Service(ChromeDriverManager().install())
 options = Options()
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
-options.add_argument(r'--user-data-dir=C:\Users\Mohamed\AppData\Local\Google\Chrome\User Data\Default')
-options.add_argument('user-agent=selenium')
+options.add_argument(f'--user-data-dir={USER_DATA_DIR}')
+options.add_argument(f'user-agent={USER_AGENT}')
 options.add_argument('--disable-notifications')
 
 browser = Chrome(service=service, options=options)
