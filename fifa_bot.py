@@ -13,7 +13,7 @@ from time import sleep
 FIFA_SITE = 'https://www.ea.com/fifa/ultimate-team/web-app/'
 PRICE_SITE = 'https://www.futwiz.com/en/fifa22/player/lionel-messi/69'
 
-USER_DATA_DIR = 'C:\Users\Mohamed\AppData\Local\Google\Chrome\User Data\Default'
+USER_DATA_DIR = r'C:\Users\LEGION\AppData\Local\Google\Chrome\User Data\Default'
 USER_AGENT = 'selenium'
 
 X = 1760
@@ -129,14 +129,19 @@ click(X, Y)
 hotkey('ctrl', 't')
 switch_to_page(browser, 1)
 browser.get(PRICE_SITE)
+click(X, Y)
 switch_to_page(browser, 0)
 
 # -- login -- #
-click_shield = browser.find_element(By.XPATH, '/html/body/div[4]').get_attribute('class').split()[-1]
-if (click_shield != 'showing'):
+while True:
     login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
     login.click()
-    sleep(1)
+    sleep(0.25)
+
+    click_shield = browser.find_element(By.XPATH, '/html/body/div[4]').get_attribute('class').split()[-1]
+    if (click_shield == "showing"):
+        break
+sleep(1)
 
 # -- get to players -- #
 transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
