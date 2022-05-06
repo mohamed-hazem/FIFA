@@ -6,12 +6,17 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-from pyautogui import click, hotkey
+from requests import Session
+from bs4 import BeautifulSoup
+
+from pyautogui import click
 
 from time import sleep
 # =================================================================================================== #
 FIFA_SITE = 'https://www.ea.com/fifa/ultimate-team/web-app/'
-PRICE_SITE = 'https://www.futwiz.com/en/fifa22/player/lionel-messi/69'
+
+SEARCH_URL = "https://www.futwiz.com/en/searches/player22/"
+PLAYER_URL = "https://www.futwiz.com/en/fifa22/player/"
 
 USER_DATA_DIR = r'C:\Users\LEGION\AppData\Local\Google\Chrome\User Data\Default'
 USER_AGENT = 'selenium'
@@ -21,58 +26,30 @@ Y = 350
 # =================================================================================================== #
 
 # --- Functions -- #
-def switch_to_page(browser, page):
-    browser.switch_to.window(browser.window_handles[page])
     
-# ---------------------------------------------------------------------------------------------- #
-
-def get_site_price(browser, player_data):
-    switch_to_page(browser, 1)
-
-    search_bar = browser.find_element(By.XPATH, '//*[@id="globalsearch"]')
-    search_bar.send_keys(player_data['name'])
-    search_bar.send_keys(Keys.ARROW_DOWN)
-
-    players = browser.find_element(By.XPATH, '//*[@id="ui-id-1"]').find_elements(By.TAG_NAME, 'li')
-
-    if (len(players) == 0):
-        search_bar.send_keys(Keys.CONTROL, 'a')
-        search_bar.send_keys(Keys.DELETE)
-        switch_to_page(browser, 0)
-        return -1
-
-    found = False
-    for player in players:
-        position = player.find_element(By.CLASS_NAME, 'drop-position').text
-        rating = player.find_element(By.CLASS_NAME, 'drop-rating').text
-
-        if ((rating == player_data['rating']) and (position == player_data['position'])):
-            player.click()
-            found = True
-            sleep(1.5)
-            break
+def get_player_price(player_data):
+    session = Session()
     
-    # see if player found or not
-    if not found:
-        search_bar.send_keys(Keys.CONTROL, 'a')
-        search_bar.send_keys(Keys.DELETE)
-        switch_to_page(browser, 0)
-        return -1 
+    URL = SEARCH_URL + player_data["name"]
 
+    versions = session.get(URL).json()
+
+    if versions:
+        for version in versions:
+            if (version["rating"] == player_data["rating"] and version["position"] == player_data["position"]):
+                player_url = f"{version['urlname']}/{version['lineid']}"
+                player_page = BeautifulSoup(session.get(PLAYER_URL + player_url).content, "html.parser")
+
+                price = int(player_page.find_all("div", class_="playerprofile-price text-center")[2].text.strip().replace(",", ""))
+
+                return price, int(version["pcminprice"]), int(version["pcmaxprice"])
     
-    price = browser.find_element(By.XPATH, '//*[@id="panel"]/div[4]/div/div[2]/div/div[2]/div[1]/div[3]/div[1]/div[2]').text
-    price = int(price.replace(',', ''))
-
-    switch_to_page(browser, 0)
-
-    return price
-
-# ---------------------------------------------------------------------------------------------- #
+    return [None]*3
 
 def sell_price(price, MIN, MAX):
     
-    if (price == -1):
-        return (-1, -1)
+    if (price is None):
+        return [None]*2
 
     if (price == 0):
         start = MIN
@@ -93,9 +70,9 @@ def sell_price(price, MIN, MAX):
     
     return start, end
 
-# ---------------------------------------------------------------------------------------------- #
-
 def sell(browser, start, buy_now):
+    browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[1]/button').click()
+    
     start_price = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[2]/div[2]/input')
     buy_now_price = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[3]/div[2]/input')
     list_for_tf = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/button')
@@ -126,22 +103,14 @@ browser.maximize_window()
 # -- init step -- #
 browser.get(FIFA_SITE)
 click(X, Y)
-hotkey('ctrl', 't')
-switch_to_page(browser, 1)
-browser.get(PRICE_SITE)
-click(X, Y)
-switch_to_page(browser, 0)
 
 # -- login -- #
 while True:
     login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
-    login.click()
-    sleep(0.25)
-
-    click_shield = browser.find_element(By.XPATH, '/html/body/div[4]').get_attribute('class').split()[-1]
-    if (click_shield == "showing"):
+    if (login.is_enabled()):
+        login.click()
         break
-sleep(1)
+    sleep(0.25)
 
 # -- get to players -- #
 transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
@@ -152,46 +121,51 @@ transfers_list = browser.find_element(By.XPATH, '/html/body/main/section/section
 transfers_list.click()
 sleep(1)
 
-# -- players list -- #
-players_list = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/div/section[3]/ul').find_elements(By.CLASS_NAME, 'listFUTItem')
-players_number = len(players_list)
+
+# -- Select Players -- #
+browser.implicitly_wait(0.5)
+# players list
+available_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem'))
+# unsold players
+unsold_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem'))
+browser.implicitly_wait(15)
 
 # -- sell players -- #
+players_number = available_number + unsold_number
 skip = 0
-for _ in range(players_number):
+for p in range(players_number):
 
     # select player
-    players_list = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/div/section[3]/ul').find_elements(By.CLASS_NAME, 'listFUTItem')
+    if (p < available_number):
+        players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem')
+    else:
+        players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem')
     player = players_list[skip]
-    player.click()
+    try:
+        player.click()
+    except:
+        continue
 
     # get player data
     name = player.find_element(By.CLASS_NAME, 'name').text
     rating = player.find_element(By.CLASS_NAME, 'rating').text
     position = player.find_element(By.CLASS_NAME, 'position').text
-    player_data = {'name': name, 'position': f"({position})", 'rating': rating}
-    sleep(0.5)
+    player_data = {'name': name, 'position': position, 'rating': rating}
 
     # get player price
-    price = get_site_price(browser, player_data)
-    sleep(0.5)
+    price, min_price, max_price = get_player_price(player_data)
 
-    # get MIN & MAX price
-    browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[1]/button').click()
-    min_price = int(browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[2]/div[1]/span[2]').text.split()[-1].replace(',', ''))
-    max_price = int(browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[3]/div[1]/span[2]').text.split()[-1].replace(',', ''))
-    
     # get bid & buy now price
     start, buy_now = sell_price(price, min_price, max_price)
 
     # skip if player price wasn't found
-    if (start == buy_now == -1):
+    if (start is None):
         skip += 1
         continue
 
     # sell player
     sell(browser, start, buy_now)
-    sleep(2)
+    sleep(1)
 
 
 # ====================================================================================================================== #
