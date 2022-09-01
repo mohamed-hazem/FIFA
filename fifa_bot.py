@@ -10,6 +10,7 @@ from requests import Session
 from bs4 import BeautifulSoup
 
 from pyautogui import click
+from unidecode import unidecode
 
 from time import sleep
 # =================================================================================================== #
@@ -18,19 +19,20 @@ FIFA_SITE = 'https://www.ea.com/fifa/ultimate-team/web-app/'
 SEARCH_URL = "https://www.futwiz.com/en/searches/player22/"
 PLAYER_URL = "https://www.futwiz.com/en/fifa22/player/"
 
-USER_DATA_DIR = r'C:\Users\LEGION\AppData\Local\Google\Chrome\User Data\Default'
-USER_AGENT = 'selenium'
+USER_DATA_DIR = r"C:\Users\LEGION\AppData\Local\Google\Chrome\User"
 
 X = 1760
 Y = 350
+
+WAIT = 3
 # =================================================================================================== #
 
-# --- Functions -- #
+# --- Functions --- #
     
 def get_player_price(player_data):
     session = Session()
     
-    URL = SEARCH_URL + player_data["name"]
+    URL = SEARCH_URL + unidecode(player_data["name"])
 
     versions = session.get(URL).json()
 
@@ -93,11 +95,10 @@ service = Service(ChromeDriverManager().install())
 options = Options()
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
 options.add_argument(f'--user-data-dir={USER_DATA_DIR}')
-options.add_argument(f'user-agent={USER_AGENT}')
 options.add_argument('--disable-notifications')
 
 browser = Chrome(service=service, options=options)
-browser.implicitly_wait(15)
+browser.implicitly_wait(WAIT)
 browser.maximize_window()
 
 # -- init step -- #
@@ -105,12 +106,19 @@ browser.get(FIFA_SITE)
 click(X, Y)
 
 # -- login -- #
-while True:
-    login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
-    if (login.is_enabled()):
-        login.click()
-        break
-    sleep(0.25)
+try:
+    browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
+except:
+    try:
+        while True:
+            login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
+            if (login.is_enabled()):
+                login.click()
+                break
+            sleep(0.25)
+    except Exception as e:
+        pass
+# ------------------------------------- #
 
 # -- get to players -- #
 transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
@@ -121,36 +129,37 @@ transfers_list = browser.find_element(By.XPATH, '/html/body/main/section/section
 transfers_list.click()
 sleep(1)
 
-
 # -- Select Players -- #
 browser.implicitly_wait(0.5)
 # players list
 available_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem'))
 # unsold players
 unsold_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem'))
-browser.implicitly_wait(15)
+browser.implicitly_wait(WAIT)
 
 # -- sell players -- #
 players_number = available_number + unsold_number
 skip = 0
-for p in range(players_number):
+while (players_number):
 
-    # select player
-    if (p < available_number):
-        players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem')
-    else:
-        players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem')
-    player = players_list[skip]
     try:
+        # select player
+        if (players_number <= available_number):
+            players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem')
+        else:
+            players_list = browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem')
+        player = players_list[skip]
         player.click()
+
+        # get player data
+        name = player.find_element(By.CLASS_NAME, 'name').text
+        rating = player.find_element(By.CLASS_NAME, 'rating').text
+        position = player.find_element(By.CLASS_NAME, 'position').text
+        player_data = {'name': name, 'position': position, 'rating': rating}
     except:
         continue
 
-    # get player data
-    name = player.find_element(By.CLASS_NAME, 'name').text
-    rating = player.find_element(By.CLASS_NAME, 'rating').text
-    position = player.find_element(By.CLASS_NAME, 'position').text
-    player_data = {'name': name, 'position': position, 'rating': rating}
+    players_number -= 1
 
     # get player price
     price, min_price, max_price = get_player_price(player_data)
