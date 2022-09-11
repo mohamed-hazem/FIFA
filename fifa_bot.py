@@ -24,7 +24,7 @@ USER_DATA_DIR = r"C:\Users\LEGION\AppData\Local\Google\Chrome\User"
 X = 1760
 Y = 350
 
-WAIT = 3
+WAIT = 0.5
 # =================================================================================================== #
 
 # --- Functions --- #
@@ -79,11 +79,9 @@ def sell(browser, start, buy_now):
     buy_now_price = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/div[3]/div[2]/input')
     list_for_tf = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/section/div/div/div[2]/div[2]/div[2]/button')
 
-    buy_now_price.send_keys(Keys.CONTROL, 'a')
-    buy_now_price.send_keys(Keys.DELETE)
+    buy_now_price.send_keys(Keys.CONTROL, 'A', Keys.DELETE)
     buy_now_price.send_keys(buy_now)
-    start_price.send_keys(Keys.CONTROL, 'a')
-    start_price.send_keys(Keys.DELETE)
+    start_price.send_keys(Keys.CONTROL, 'A', Keys.DELETE)
     start_price.send_keys(start)
 
     list_for_tf.click()
@@ -106,17 +104,16 @@ browser.get(FIFA_SITE)
 click(X, Y)
 
 # -- login -- #
-try:
-    browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
-except:
+while True:
     try:
-        while True:
-            login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
-            if (login.is_enabled()):
-                login.click()
-                break
-            sleep(0.25)
-    except Exception as e:
+        login = browser.find_element(By.XPATH, '//*[@id="Login"]/div/div/button[1]')
+        if (login.is_enabled()):
+            login.click()
+        sleep(0.25)
+
+        transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
+        break
+    except:
         pass
 # ------------------------------------- #
 
@@ -130,12 +127,10 @@ transfers_list.click()
 sleep(1)
 
 # -- Select Players -- #
-browser.implicitly_wait(0.5)
 # players list
 available_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem'))
 # unsold players
 unsold_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem'))
-browser.implicitly_wait(WAIT)
 
 # -- sell players -- #
 players_number = available_number + unsold_number
@@ -156,25 +151,27 @@ while (players_number):
         rating = player.find_element(By.CLASS_NAME, 'rating').text
         position = player.find_element(By.CLASS_NAME, 'position').text
         player_data = {'name': name, 'position': position, 'rating': rating}
-    except:
+
+
+        # get player price
+        price, min_price, max_price = get_player_price(player_data)
+
+        # get bid & buy now price
+        start, buy_now = sell_price(price, min_price, max_price)
+
+        # skip if player price wasn't found
+        if (start is None):
+            skip += 1
+            continue
+
+        # sell player
+        sell(browser, start, buy_now)
+        sleep(1)
+
+    except Exception as e:
+        print(str(e))
         continue
 
     players_number -= 1
-
-    # get player price
-    price, min_price, max_price = get_player_price(player_data)
-
-    # get bid & buy now price
-    start, buy_now = sell_price(price, min_price, max_price)
-
-    # skip if player price wasn't found
-    if (start is None):
-        skip += 1
-        continue
-
-    # sell player
-    sell(browser, start, buy_now)
-    sleep(1)
-
 
 # ====================================================================================================================== #
