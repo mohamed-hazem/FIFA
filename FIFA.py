@@ -16,8 +16,8 @@ from time import sleep
 # =================================================================================================== #
 FIFA_SITE = 'https://www.ea.com/fifa/ultimate-team/web-app/'
 
-SEARCH_URL = "https://www.futwiz.com/en/searches/player22/"
-PLAYER_URL = "https://www.futwiz.com/en/fifa22/player/"
+SEARCH_URL = "https://www.futwiz.com/en/searches/player23/"
+PLAYER_URL = "https://www.futwiz.com/en/fifa23/player/"
 
 USER_DATA_DIR = r"C:\Users\LEGION\AppData\Local\Google\Chrome\User"
 
@@ -42,7 +42,7 @@ def get_player_price(player_data):
                 player_url = f"{version['urlname']}/{version['lineid']}"
                 player_page = BeautifulSoup(session.get(PLAYER_URL + player_url).content, "html.parser")
 
-                price = int(player_page.find_all("div", class_="playerprofile-price text-center")[2].text.strip().replace(",", ""))
+                price = int(player_page.find_all("div", class_="price-num")[1].text.strip().replace(",", ""))
 
                 return price, int(version["pcminprice"]), int(version["pcmaxprice"])
     
@@ -87,7 +87,7 @@ def sell(browser, start, buy_now):
     list_for_tf.click()
 
 # =================================================================================================== #
-          
+
 # -- init browser -- #
 service = Service(ChromeDriverManager().install())
 options = Options()
