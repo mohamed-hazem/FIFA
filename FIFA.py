@@ -21,14 +21,13 @@ PLAYER_URL = "https://www.futwiz.com/en/fifa23/player/"
 
 USER_DATA_DIR = r"C:\Users\LEGION\AppData\Local\Google\Chrome\User"
 
-X = 1760
-Y = 350
-
 WAIT = 0.5
+X, Y = 1760, 350
+
+TRANSFER_LIMIT = 30
 # =================================================================================================== #
 
-# --- Functions --- #
-    
+# --- Functions --- #   
 def get_player_price(player_data):
     session = Session()
     
@@ -49,26 +48,23 @@ def get_player_price(player_data):
     return [None]*3
 
 def sell_price(price, MIN, MAX):
-    
+
     if (price is None):
         return [None]*2
 
-    if (price == 0):
-        start = MIN
-        end = MAX
-    elif (price <= 1000) and (price > 0):
-        start = price - 100
-        end = price - 50
-    elif (price <= 10000) and (price > 1000):
-        start = price - 200
-        end = price - 100
-    elif (price > 10000):
-        start = price - 2000
-        end = price - 1000
-    
+    elif (price == 0):
+        return MIN, MAX
 
-    start = MIN if start < MIN else start
-    end = MAX if end > MAX else end
+    s1, s2, s3 = (50, 100, 1000)
+    if (price <= 1000):
+        s = s1
+    elif (price <= 10000):
+        s = s2
+    elif (price > 10000):
+        s = s3
+
+    start = max(price - 2*s, MIN)
+    end = min(price - s, MAX)
     
     return start, end
 
@@ -127,12 +123,14 @@ transfers_list.click()
 sleep(1)
 
 # -- Select Players -- #
-# players list
 available_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem'))
-# unsold players
 unsold_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem'))
 
+# Disable TRANSFER LIMIT
+browser.execute_script("services.User.maxAllowedAuctions = 100")
+
 # -- sell players -- #
+# players_number = min(available_number + unsold_number, TRANSFER_LIMIT)
 players_number = available_number + unsold_number
 skip = 0
 while (players_number):
@@ -151,7 +149,6 @@ while (players_number):
         rating = player.find_element(By.CLASS_NAME, 'rating').text
         position = player.find_element(By.CLASS_NAME, 'position').text
         player_data = {'name': name, 'position': position, 'rating': rating}
-
 
         # get player price
         price, min_price, max_price = get_player_price(player_data)
