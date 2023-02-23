@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+
 from webdriver_manager.chrome import ChromeDriverManager
 
 from requests import Session
@@ -20,11 +21,10 @@ SEARCH_URL = "https://www.futwiz.com/en/searches/player23/"
 PLAYER_URL = "https://www.futwiz.com/en/fifa23/player/"
 
 USER_DATA_DIR = r"C:\Users\LEGION\AppData\Local\Google\Chrome\User"
+CHROME_DRIVER = r"C:\chromedriver\chromedriver.exe"
 
 WAIT = 0.5
 X, Y = 1760, 350
-
-TRANSFER_LIMIT = 30
 # =================================================================================================== #
 
 # --- Functions --- #   
@@ -85,6 +85,7 @@ def sell(browser, start, buy_now):
 # =================================================================================================== #
 
 # -- init browser -- #
+# service = Service(CHROME_DRIVER)
 service = Service(ChromeDriverManager().install())
 options = Options()
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -112,27 +113,32 @@ while True:
     except:
         pass
 # ------------------------------------- #
+while True:
+    try:
+        # -- get to players -- #
+        transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
+        transfers.click()
+        sleep(1)
 
-# -- get to players -- #
-transfers = browser.find_element(By.XPATH, '/html/body/main/section/nav/button[3]')
-transfers.click()
-sleep(1)
-
-transfers_list = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/div[3]')
-transfers_list.click()
-sleep(1)
+        transfers_list = browser.find_element(By.XPATH, '/html/body/main/section/section/div[2]/div/div/div[3]')
+        transfers_list.click()
+        sleep(1)
+        break
+    except:
+        input("Can't go to transfers :( ")
 
 # -- Select Players -- #
 available_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[2].find_elements(By.CLASS_NAME, 'listFUTItem'))
 unsold_number = len(browser.find_elements(By.CLASS_NAME, 'itemList')[1].find_elements(By.CLASS_NAME, 'listFUTItem'))
 
-# Disable TRANSFER LIMIT
-browser.execute_script("services.User.maxAllowedAuctions = 100")
-
 # -- sell players -- #
-# players_number = min(available_number + unsold_number, TRANSFER_LIMIT)
 players_number = available_number + unsold_number
+total_num = players_number
 skip = 0
+
+max_profit = 0
+min_profit = 0
+
 while (players_number):
 
     try:
@@ -165,10 +171,21 @@ while (players_number):
         sell(browser, start, buy_now)
         sleep(1)
 
+        # update min & max profit
+        if (players_number <= available_number):
+            min_profit += start
+            max_profit += buy_now
+
     except Exception as e:
-        print(str(e))
         continue
 
     players_number -= 1
 
+# -------------------------------------------------- #
+print(f"===== {total_num} players =====")
+print(f" Min Profit: {min_profit:,}")
+print(f" Max Profit: {max_profit:,}\n")
+print(f" Avg Profit: {((max_profit+min_profit)//2):,}")
+print(f"==========================")
+input()
 # ====================================================================================================================== #
