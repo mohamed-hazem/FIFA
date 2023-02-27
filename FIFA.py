@@ -35,9 +35,9 @@ def get_player_price(player_data):
 
     versions = session.get(URL).json()
 
-    if versions:
+    if (versions):
         for version in versions:
-            if (version["rating"] == player_data["rating"] and version["position"] == player_data["position"]):
+            if (version["rating"] == player_data["rating"]) and (version["position"] == player_data["position"]) and (version["cardtype"] != "card-23-wcplayer"):
                 player_url = f"{version['urlname']}/{version['lineid']}"
                 player_page = BeautifulSoup(session.get(PLAYER_URL + player_url).content, "html.parser")
 
